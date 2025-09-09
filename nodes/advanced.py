@@ -1,5 +1,6 @@
 from ..core.utils import clean_url, get_client_id, get_new_job_id
 from ..core.dispatch import dispatch_to_remote, clear_remote_queue
+import time
 
 class RemoteChainStart:
 	"""Merge required attributes into one [REMCHAIN]"""
@@ -33,7 +34,7 @@ class RemoteChainStart:
 		return(remote_chain,)
 
 	@classmethod
-	def IS_CHANGED(self, workflow, trigger, batch, seed, prompt):
+	def IS_CHANGED(self, workflow, trigger, batch, seed):
 		uuid = f"W:{workflow},B:{batch},S:{seed}"
 		return uuid if trigger == "on_change" else str(time.time())
 
