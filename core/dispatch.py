@@ -54,31 +54,29 @@ def get_output_nodes(remote_url):
 	out = [k for k, v in data.items() if v.get("output_node")]
 	return out
 
-def dispatch_to_remote(remote_url, prompt, job_id=f"{get_client_id()}-unknown", outputs="final_image"):
-	### PROMPT LOGIC ###
-	prompt = deepcopy(prompt)
+def dispatch_to_remote(remote_url, prompt_origin, job_id=f"{get_client_id()}-unknown", outputs="final_image"):
+	prompt = deepcopy(prompt_origin)
 	to_del = []
 	def recursive_node_deletion(start_node):
-		target_nodes = [start_node]
-		if start_node not in to_del:
-			to_del.append(start_node)
-		while len(target_nodes) > 0:
-			new_targets = []
-			for target in target_nodes:
-				for node in prompt.keys():
-					inputs = prompt[node].get("inputs")
-					if not inputs:
-						continue
-					for i in inputs.values():
-						if type(i) == list:
-							if len(i) > 0 and i[0] in to_del:
-								if node not in to_del:
-									to_del.append(node)
-									new_targets.append(node)
-			target_nodes += new_targets
-			target_nodes.remove(target)
+		if start_node in to_del:
+			return
+		
+		to_del.append(start_node)
+		
+		inputs = prompt[start_node].get("inputs")
+		if not inputs:
+			return
+		for iv in inputs.values():
+			if (not isinstance(iv, list)) or (not iv) or (iv[0] in to_del):
+				continue
+			
+			recursive_node_deletion(iv[0])
 
-	# find current node and disable all others
+	def find_node(class_type):
+		for i in prompt.keys():
+			if prompt[i]["class_type"] == class_type:
+				return i
+
 	output_src = None
 	for i in prompt.keys():
 		if prompt[i]["class_type"].startswith("RemoteQueue"):
@@ -93,16 +91,17 @@ def dispatch_to_remote(remote_url, prompt, job_id=f"{get_client_id()}-unknown", 
 	for i in prompt.keys():
 		# only leave current fetch but replace with PreviewImage
 		if prompt[i]["class_type"] == "FetchRemote":
+			recursive_node_deletion(i)
 			if prompt[i]["inputs"]["remote_info"][0] == output_src:
 				output = {
-					"inputs": {"images": prompt[i]["inputs"]["final_image"]},
+					"inputs": {"images": [str(find_node("VAEDecode")), 0]},
 					"class_type": 'PreviewImage',
 					"final_output": True, # might allow multiple outputs with an ID?
 				}
-			recursive_node_deletion(i)
+
 		# do not save output on remote
 		if prompt[i]["class_type"] in banned:
-			recursive_node_deletion(i)
+			to_del.append(i)
 	if output:
 		prompt[str(max([int(x) for x in prompt.keys()])+1)] = output
 	for i in to_del: del prompt[i]

@@ -102,7 +102,7 @@ class LoadCurrentWorkflowJSON:
 
 	@classmethod
 	def IS_CHANGED(s, prompt):
-		return hashlib.sha256(json.dumps(prompt)).digest().hex()
+		return True
 
 NODE_CLASS_MAPPINGS = {
 	"SaveDiskWorkflowJSON":    SaveDiskWorkflowJSON,
